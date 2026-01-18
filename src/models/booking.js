@@ -13,6 +13,13 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
+      //no association with other models -> as of now
+      //the following associations we be implemented:
+        //1. Booking <-> Flight (1:1)
+        //2. Booking <-> User (M:1)
+          //context: 
+              //1. a booking can belong to one flight
+              //2. a single user can have multiple bookings
     }
   }
   Booking.init({
