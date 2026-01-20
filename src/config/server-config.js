@@ -3,5 +3,6 @@ const dotenv = require('dotenv'); //importing the dotenv module in a dotenv obje
 dotenv.config(); //dotenv object will call the config function that will load the .env file and make the variables available in the process.env object
 
 module.exports = {
-    PORT: process.env.PORT
+    PORT: process.env.PORT,
+    FLIGHTS_SERVICE_URL: process.env.FLIGHTS_SERVICE_URL,
 }

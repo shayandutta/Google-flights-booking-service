@@ -7,6 +7,9 @@ const {ServerConfig, Logger} =require('./config') //if importing an index.js fil
 
 const app = express();
 
+app.use(express.json());
+app.use(express.urlencoded({extended: true}));
+
 app.use('/api' , apiRoutes);
 
 app.listen(ServerConfig.PORT, ()=>{
