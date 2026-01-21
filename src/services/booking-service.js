@@ -5,7 +5,7 @@ const AppError = require('../utils/errors/app-error');
 const {StatusCodes} = require('http-status-codes');
 const BookingRepository = require('../repositories/booking-repository');
 const { Enums } = require('../utils/common');
-const {BOOKED} = Enums.BookingStatus;
+const {BOOKED, CANCELLED} = Enums.BookingStatus;
 
 const bookingRepository = new BookingRepository();
 
@@ -60,6 +60,25 @@ async function makePayment(data){
     const t = await db.sequelize.transaction();
     try{
         const bookingDetails = await bookingRepository.get(data.bookingId, t);
+        if(bookingDetails.status == CANCELLED){
+            throw new AppError('Booking expired', StatusCodes.BAD_REQUEST);
+        }
+        const bookingTime = new Date(bookingDetails.createdAt);
+        const currentTime = new Date();
+        if(currentTime - bookingTime > 1000*60*5){
+            // Use separate transaction for cancellation to ensure it's committed
+            const cancelTransaction = await db.sequelize.transaction();
+            try {
+                await bookingRepository.update(data.bookingId, {status:CANCELLED}, cancelTransaction);
+                await cancelTransaction.commit(); // Commit the cancellation
+            } catch(cancelError) {
+                await cancelTransaction.rollback();
+                throw cancelError;
+            }
+            // Now throw error after cancellation is committed
+             // Rollback the main transaction
+            throw new AppError('Booking marked cancelled as its expired', StatusCodes.BAD_REQUEST);
+        }
         if(bookingDetails.totalCost !== data.totalCost){
             throw new AppError('Total cost mismatch', StatusCodes.BAD_REQUEST);
         }
