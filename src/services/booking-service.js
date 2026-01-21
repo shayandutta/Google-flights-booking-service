@@ -4,6 +4,8 @@ const {ServerConfig} = require('../config');
 const AppError = require('../utils/errors/app-error');
 const {StatusCodes} = require('http-status-codes');
 const BookingRepository = require('../repositories/booking-repository');
+const { Enums } = require('../utils/common');
+const {BOOKED} = Enums.BookingStatus;
 
 const bookingRepository = new BookingRepository();
 
@@ -54,6 +56,27 @@ async function createBooking(data){
     }
 }
 
+async function makePayment(data){
+    const t = await db.sequelize.transaction();
+    try{
+        const bookingDetails = await bookingRepository.get(data.bookingId, t);
+        if(bookingDetails.totalCost !== data.totalCost){
+            throw new AppError('Total cost mismatch', StatusCodes.BAD_REQUEST);
+        }
+        if(bookingDetails.userId !== data.userId){
+            throw new AppError('User ID mismatch', StatusCodes.BAD_REQUEST);
+        }
+        //we assume here that payment is successful
+        const response = await bookingRepository.update(data.bookingId, {status: BOOKED}, t);
+        await t.commit();
+        return response;
+    }catch(error){
+        await t.rollback();
+        throw error;
+    }
+}
+
 module.exports = {
     createBooking,
+    makePayment,
 }
