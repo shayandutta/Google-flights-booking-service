@@ -29,8 +29,8 @@ async function createBooking(data){
     //handling transactions better, the above approach is not good as it is not scalable and not efficient -> nested callbacks are not good
 
     //unmanaged transaction using try-catch
-    // start a transaction
-    const t = await db.sequelize.transaction();
+
+    const t = await db.sequelize.transaction(); //new transaction object
     try{
         const flight = await axios.get(`${ServerConfig.FLIGHTS_SERVICE_URL}/api/v1/flights/${data.flightId}`); //connecting to the flights microservice
         const flightData = flight.data.data;
@@ -66,17 +66,7 @@ async function makePayment(data){
         const bookingTime = new Date(bookingDetails.createdAt);
         const currentTime = new Date();
         if(currentTime - bookingTime > 1000*60*5){
-            // Use separate transaction for cancellation to ensure it's committed
-            const cancelTransaction = await db.sequelize.transaction();
-            try {
-                await bookingRepository.update(data.bookingId, {status:CANCELLED}, cancelTransaction);
-                await cancelTransaction.commit(); // Commit the cancellation
-            } catch(cancelError) {
-                await cancelTransaction.rollback();
-                throw cancelError;
-            }
-            // Now throw error after cancellation is committed
-             // Rollback the main transaction
+            await cancelBooking(data.bookingId);
             throw new AppError('Booking marked cancelled as its expired', StatusCodes.BAD_REQUEST);
         }
         if(bookingDetails.totalCost !== data.totalCost){
@@ -95,7 +85,30 @@ async function makePayment(data){
     }
 }
 
+async function cancelBooking(bookingId){
+    const transaction = await db.sequelize.transaction();
+    try{
+        const bookingDetails = await bookingRepository.get(bookingId, transaction);
+        console.log("bookingDetails", bookingDetails);
+        if(bookingDetails.status == CANCELLED){
+            await transaction.commit();
+            return true;
+        }
+        await axios.patch(`${ServerConfig.FLIGHTS_SERVICE_URL}/api/v1/flights/${bookingDetails.flightId}/seats`, {
+            seats: bookingDetails.noOfSeats,
+            dec: false
+        })
+        await bookingRepository.update(bookingId, {status: CANCELLED}, transaction);
+        await transaction.commit();   
+        return bookingDetails;
+    }catch(error){
+        await transaction.rollback();
+        throw error;
+    }
+}
+
 module.exports = {
     createBooking,
     makePayment,
+    cancelBooking,
 }

@@ -1,6 +1,7 @@
 const { StatusCodes } = require('http-status-codes');
 const {BookingService} = require('../services');
 const {SuccessResponse, ErrorResponse} = require('../utils/common');
+const AppError = require('../utils/errors/app-error');
 
 async function createBooking(req, res){
     try{
