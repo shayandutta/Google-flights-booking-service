@@ -10,6 +10,8 @@ const bookingRepository = new BookingRepository();
 //the entire booking should be in a single transaction -> if any of the steps fail, the entire booking should be rolled back
 async function createBooking(data){
     
+    //managed transaction using promises
+
     // return new Promise(async (resolve, reject)=> {
     //         const result = await db.sequelize.transaction(async function(t){
     //             const flight = await axios.get(`${ServerConfig.FLIGHTS_SERVICE_URL}/api/v1/flights/${data.flightId}`);
@@ -23,8 +25,10 @@ async function createBooking(data){
 
 
     //handling transactions better, the above approach is not good as it is not scalable and not efficient -> nested callbacks are not good
+
+    //unmanaged transaction using try-catch
     // start a transaction
-    const transaction = await db.sequelize.transaction();
+    const t = await db.sequelize.transaction();
     try{
         const flight = await axios.get(`${ServerConfig.FLIGHTS_SERVICE_URL}/api/v1/flights/${data.flightId}`); //connecting to the flights microservice
         const flightData = flight.data.data;
@@ -35,17 +39,17 @@ async function createBooking(data){
         }
         const totalBillingAmount = data.noOfSeats *flightData.price;
         const bookingPayload = {...data, totalCost: totalBillingAmount};//bookingPayload ->  { flightId: 3, userId: 1, noOfSeats: 20, totalCost: 104000 }
-        const booking = await bookingRepository.create(bookingPayload, transaction);
+        const booking = await bookingRepository.createBooking(bookingPayload, t);
 
         //update the flight seat availability
         await axios.patch(`${ServerConfig.FLIGHTS_SERVICE_URL}/api/v1/flights/${data.flightId}/seats`, {
             seats: data.noOfSeats,
         });
         
-        await transaction.commit();
+        await t.commit();
         return booking;
     }catch(error){
-        await transaction.rollback();
+        await t.rollback();
         throw error;
     }
 }
