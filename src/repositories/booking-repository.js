@@ -1,10 +1,14 @@
-const {Booking} = require('../models/booking');
+const db = require('../models');
 const CrudRepository = require('./crud-repository');
-const {StatusCodes} = require('http-status-codes');
 
 class BookingRepository extends CrudRepository{
     constructor(){
-        super(Booking)
+        super(db.Booking)
+    }
+
+    async createBooking(data, transaction){
+        const booking = await db.Booking.create(data, {transaction: transaction});
+        return booking;
     }
 }
 
